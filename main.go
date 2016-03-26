@@ -2,29 +2,39 @@ package main
 
 import (
 	"net/http"
+	"encoding/json"
+	"flag"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/websocket"
 )
 
+var parseJSON bool
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
 
-type message struct {
-	Handle string `json:"handle"`
-	Text   string `json:"text"`
+type Message struct {
+	Topic   string      `json:"topic"`
+	Event   string      `json:"event"`
+	Ref     string      `json:"ref"`
+	Payload interface{} `json:"payload"`
 }
 
 func main() {
+	flag.BoolVar(&parseJSON, "parse", false, "parse and encode message payloads as JSON")
+	flag.Parse()
+	log.Infof("Parsing JSON: %v", parseJSON)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/socket/websocket", handleWebsocket)
 
 	n := negroni.Classic()
 	n.UseHandler(mux)
-	n.Run(":3000")
+	n.Run(":4000")
 }
 
 func handleWebsocket(w http.ResponseWriter, r *http.Request) {
@@ -48,13 +58,21 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		switch mt {
-		case websocket.TextMessage:
-			log.Info("Received text: " + string(data))
-			if err = ws.WriteMessage(mt, data); err != nil {
-				log.Error("Error writing websocket message")
+		case websocket.TextMessage, websocket.BinaryMessage:
+			// If parsing the message payload, do that now
+			if parseJSON {
+				var msg Message
+				if err := json.Unmarshal(data, &msg); err != nil {
+					log.Error("Error parsing JSON message")
+					break
+				}
+				if data, err = json.Marshal(msg); err != nil {
+					log.Error("Error encoding JSON message")
+					break
+				}
 			}
-		case websocket.BinaryMessage:
-			log.Info("Received binary: " + string(data))
+
+			// Echo the data back to the user
 			if err = ws.WriteMessage(mt, data); err != nil {
 				log.Error("Error writing websocket message")
 			}
