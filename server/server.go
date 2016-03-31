@@ -2,19 +2,19 @@ package main
 
 import (
 	"net/http"
-	"encoding/json"
+	_ "encoding/json"
 	"flag"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/codegangsta/negroni"
+	_ "github.com/codegangsta/negroni"
 	"github.com/gorilla/websocket"
 )
 
 var parseJSON bool
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	//ReadBufferSize:  1024,
+	//WriteBufferSize: 1024,
 }
 
 type Message struct {
@@ -29,26 +29,31 @@ func main() {
 	flag.Parse()
 	log.Infof("Parsing JSON: %v", parseJSON)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/socket/websocket", handleWebsocket)
+	//mux := http.NewServeMux()
+	//mux.HandleFunc("/socket/websocket", handleWebsocket)
 
-	n := negroni.Classic()
-	n.UseHandler(mux)
-	n.Run(":4000")
+	//n := negroni.Classic()
+	//n.UseHandler(mux)
+	//n.Run(":4000")
+
+	http.HandleFunc("/socket/websocket", handleWebsocket)
+	log.Fatal(http.ListenAndServe("localhost:4000", nil))
 }
 
 func handleWebsocket(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
+	//if r.Method != "GET" {
 		http.Error(w, "Method not allowed", 405)
 		return
-	}
+	//}
 
+	/*
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.WithField("err", err).Println("Upgrading to websockets")
 		http.Error(w, "Error Upgrading to websockets", 400)
 		return
 	}
+	ws.WriteMessage(websocket.CloseMessage, []byte{})
 
 	connected := true
 	for connected {
@@ -81,4 +86,5 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	ws.WriteMessage(websocket.CloseMessage, []byte{})
+	*/
 }
